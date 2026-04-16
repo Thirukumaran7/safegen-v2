@@ -1,0 +1,49 @@
+"""
+SafeGen AI v2 — Scoring Engine
+Weighted combination of three detector scores
+Intent carries 65-70% weight as primary signal
+"""
+
+ROLE_WEIGHTS = {
+    "student": {
+        "malware":   0.20,
+        "sensitive": 0.15,
+        "intent":    0.65,
+    },
+    "general": {
+        "malware":   0.15,
+        "sensitive": 0.15,
+        "intent":    0.70,
+    },
+    "expert": {
+        "malware":   0.15,
+        "sensitive": 0.20,
+        "intent":    0.65,
+    },
+}
+
+
+def compute_final_score(
+    malware_score:   float,
+    sensitive_score: float,
+    intent_score:    float,
+    role:            str = "general",
+) -> dict:
+    weights = ROLE_WEIGHTS.get(role, ROLE_WEIGHTS["general"])
+
+    final = (
+        weights["malware"]   * malware_score   +
+        weights["sensitive"] * sensitive_score +
+        weights["intent"]    * intent_score
+    )
+    final = round(min(10.0, max(0.0, final)), 2)
+
+    return {
+        "final_score":  final,
+        "weights_used": weights,
+        "contributions": {
+            "malware":   round(weights["malware"]   * malware_score,   2),
+            "sensitive": round(weights["sensitive"] * sensitive_score, 2),
+            "intent":    round(weights["intent"]    * intent_score,    2),
+        },
+    }

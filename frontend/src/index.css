@@ -1,0 +1,48 @@
+﻿*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 16px; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; }
+button { cursor: pointer; font-family: inherit; }
+textarea, input, select { font-family: inherit; }
+
+:root {
+  --bg:     #04080f;
+  --bg2:    #080f1a;
+  --card:   #0c1526;
+  --card2:  #101d30;
+  --border: #1a2d4a;
+  --border2:#243858;
+  --text:   #e2e8f0;
+  --text2:  #94a3b8;
+  --accent: #3b82f6;
+  --accent2:#0ea5e9;
+}
+
+[data-theme="light"] {
+  --bg:     #f0f4f8;
+  --bg2:    #e2e8f0;
+  --card:   #ffffff;
+  --card2:  #f8fafc;
+  --border: #cbd5e1;
+  --border2:#94a3b8;
+  --text:   #0f172a;
+  --text2:  #475569;
+  --accent: #2563eb;
+  --accent2:#0284c7;
+}
+
+@keyframes spin     { to { transform: rotate(360deg); } }
+@keyframes fadeSlide { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes pulse    { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+/* ── Mobile ────────────────────────────────── */
+@media (max-width: 900px) {
+  .main-grid  { grid-template-columns: 1fr !important; }
+  .det-grid   { grid-template-columns: repeat(auto-fit, minmax(140px,1fr)) !important; }
+  .cmp-grid   { grid-template-columns: 1fr !important; }
+}
+
+@media (max-width: 600px) {
+  .nav-label  { display: none; }
+  /* ensure all cards have correct border on small screens */
+  [style*="border-radius"] { border-width: 1px !important; border-style: solid !important; }
+}

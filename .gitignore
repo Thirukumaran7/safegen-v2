@@ -1,0 +1,21 @@
+﻿# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/.env
+
+# ML model (large file)
+backend/ml/intent_model.pkl
+backend/ml/rag_index.pkl
+
+# Database
+backend/*.db
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db
