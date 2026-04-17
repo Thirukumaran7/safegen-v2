@@ -29,7 +29,23 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     init_db()
+    # Preload DistilBERT model at startup to avoid timeout on first request
+    try:
+        from detectors.intent_classifier import _load_model
+        _load_model()
+        print("DistilBERT model preloaded")
+    except Exception as e:
+        print(f"Model preload warning: {e}")
+    # Build RAG index
+    try:
+        from agents.rag_engine import build_rag_index
+        build_rag_index()
+        print("RAG index built")
+    except Exception as e:
+        print(f"RAG index warning: {e}")
     print("SafeGen AI v2 started")
+    print(f"Environment: {os.getenv('ENVIRONMENT', 'development')}")
+
 
 # ── Request models ────────────────────────────────────────────────
 
@@ -148,7 +164,6 @@ async def analyze_image(request: ImageAnalyzeRequest, db: Session = Depends(get_
     try:
         from google import genai
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
         prompt = """Analyze this image for safety concerns. Check for:
 1. NSFW or adult content
 2. Violent or graphic content
@@ -170,7 +185,6 @@ EXPLANATION: one sentence reason"""
                 {"text":prompt}
             ]}]
         )
-
         lines = response.text.strip().split('\n')
         parsed = {}
         for line in lines:
@@ -186,56 +200,43 @@ EXPLANATION: one sentence reason"""
         score       = sev_scores.get(severity, 5.0)
 
         return {
-            "log_id":       0,
-            "input_type":   "image",
-            "decision":     decision,
-            "description":  {"ALLOW":"Safe image. Full response provided.","RESTRICT":"Potentially sensitive image.","REDACT":"Personal data detected in image.","BLOCK":"Unsafe image. Request denied."}.get(decision,"Image analyzed."),
-            "reason":       f"Image analysis: {issues}",
-            "final_score":  score,
-            "scores":       {"malware":0,"sensitive":0,"intent":score},
+            "log_id":0,"input_type":"image","decision":decision,
+            "description":{"ALLOW":"Safe image.","RESTRICT":"Potentially sensitive image.","REDACT":"Personal data detected.","BLOCK":"Unsafe image."}.get(decision,"Analyzed."),
+            "reason":f"Image analysis: {issues}","final_score":score,
+            "scores":{"malware":0,"sensitive":0,"intent":score},
             "contributions":{"malware":0,"sensitive":0,"intent":score},
             "score_contributions":{"malware":0,"sensitive":0,"intent":score},
-            "malware_type": "None","malware_category":"None",
-            "severity":     severity,
-            "malware_description":"Image analysis",
-            "flags":        [],
-            "pii_types":    [],"pii_count":0,"pii_detected":False,
+            "malware_type":"None","malware_category":"None","severity":severity,
+            "malware_description":"Image analysis","flags":[],
+            "pii_types":[],"pii_count":0,"pii_detected":False,
             "anonymisation_score":100,"privacy_risk":"None",
-            "intent_label": "malicious" if decision=="BLOCK" else "suspicious" if decision in ("RESTRICT","REDACT") else "benign",
-            "threat_category": issues,
-            "intent_confidence":0.9,
+            "intent_label":"malicious" if decision=="BLOCK" else "suspicious" if decision in ("RESTRICT","REDACT") else "benign",
+            "threat_category":issues,"intent_confidence":0.9,
             "injection_detected":False,"injection_patterns":[],
-            "explanation":  [f"Image analyzed by Gemini","Issues: "+issues,f"Severity: {severity}",f"Decision: {decision}"],
-            "response":     explanation,
-            "display_text": "[Image Input]",
-            "rag_used":     False,"rag_sources":[],
-            "policy":       request.policy,"role":request.role,
+            "explanation":["Image analyzed by Gemini",f"Issues: {issues}",f"Severity: {severity}",f"Decision: {decision}"],
+            "response":explanation,"display_text":"[Image Input]",
+            "rag_used":False,"rag_sources":[],"policy":request.policy,"role":request.role,
         }
     except Exception as e:
         return {
             "log_id":0,"input_type":"image","decision":"RESTRICT",
-            "description":"Image analysis failed — defaulting to RESTRICT.",
-            "reason":f"Error: {str(e)}","final_score":5.0,
+            "description":"Image analysis failed.","reason":f"Error: {str(e)}","final_score":5.0,
             "scores":{"malware":0,"sensitive":0,"intent":5.0},
             "contributions":{"malware":0,"sensitive":0,"intent":5.0},
             "score_contributions":{"malware":0,"sensitive":0,"intent":5.0},
             "malware_type":"None","malware_category":"None","severity":"Unknown",
-            "malware_description":"Image analysis error","flags":[],
-            "pii_types":[],"pii_count":0,"pii_detected":False,
-            "anonymisation_score":100,"privacy_risk":"None",
-            "intent_label":"suspicious","threat_category":"Analysis Error",
-            "intent_confidence":0.5,"injection_detected":False,"injection_patterns":[],
+            "malware_description":"Error","flags":[],"pii_types":[],"pii_count":0,"pii_detected":False,
+            "anonymisation_score":100,"privacy_risk":"None","intent_label":"suspicious",
+            "threat_category":"Analysis Error","intent_confidence":0.5,
+            "injection_detected":False,"injection_patterns":[],
             "explanation":["Image analysis failed",f"Error: {str(e)}"],
-            "response":"Unable to analyze image. Please try again.",
-            "display_text":"[Image Input]","rag_used":False,"rag_sources":[],
-            "policy":request.policy,"role":request.role,
+            "response":"Unable to analyze image.","display_text":"[Image Input]",
+            "rag_used":False,"rag_sources":[],"policy":request.policy,"role":request.role,
         }
 
 
 @app.post("/analyze-document")
 async def analyze_document(request: DocumentAnalyzeRequest, db: Session = Depends(get_db)):
-    # Run the full text analysis pipeline on document content
-    text = f"[Document: {request.filename}]\n{request.content}"
     analysis = run_risk_analysis(text=request.content, policy=request.policy, role=request.role, use_rag=False)
     response = generate_response(
         display_text=analysis["display_text"], decision=analysis["decision"]["decision"],
