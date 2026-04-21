@@ -1,10 +1,14 @@
 """
-SafeGen AI v2 — Scoring Engine
+SafeGen AI — Scoring Engine
 Weighted combination of three detector scores
 Intent carries 65-70% weight as primary signal
+Ticket roles (customer/agent/admin) have higher malware weights
+because data extraction and social engineering are primary threats
+in enterprise ticketing contexts
 """
 
 ROLE_WEIGHTS = {
+    # ── College helpdesk roles ────────────────────────────────────
     "student": {
         "malware":   0.20,
         "sensitive": 0.15,
@@ -16,6 +20,27 @@ ROLE_WEIGHTS = {
         "intent":    0.70,
     },
     "expert": {
+        "malware":   0.15,
+        "sensitive": 0.20,
+        "intent":    0.65,
+    },
+    # ── Enterprise ticketing roles ────────────────────────────────
+    # Customer: highest malware weight — data extraction and social
+    # engineering are the primary threats from the customer role
+    "customer": {
+        "malware":   0.40,
+        "sensitive": 0.15,
+        "intent":    0.45,
+    },
+    # Agent: balanced — needs to handle sensitive data legitimately
+    "agent": {
+        "malware":   0.20,
+        "sensitive": 0.20,
+        "intent":    0.60,
+    },
+    # Admin: intent-primary — admin queries are typically legitimate
+    # but still need full pipeline coverage
+    "admin": {
         "malware":   0.15,
         "sensitive": 0.20,
         "intent":    0.65,

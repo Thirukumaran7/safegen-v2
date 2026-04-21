@@ -1,19 +1,19 @@
 """
-SafeGen AI v2 — Sensitive Data Detector
-15 PII and credential types
-Regex-based — correct tool for fixed-format data
+SafeGen AI — Sensitive Data Detector (Extended with Ticket PII)
+18 PII and credential types (15 original + 3 ticket-specific)
 """
 
 import re
 
 SENSITIVE_PATTERNS = {
+    # ── Original 15 ──────────────────────────────────────────────
     "openai_api_key":    (r'sk-[a-zA-Z0-9]{10,}',                                    3.5),
     "anthropic_api_key": (r'sk-ant-[a-zA-Z0-9\-]{10,}',                              3.5),
     "aws_access_key":    (r'AKIA[A-Z0-9]{16}',                                        3.5),
     "github_token":      (r'gh[pousr]_[a-zA-Z0-9]{10,}',                             3.5),
     "generic_api_key":   (r'(api[_\-]?key|api[_\-]?token)\s*[=:]\s*[a-zA-Z0-9\-_]{8,}', 3.0),
     "email_address":     (r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}',      1.5),
-    "phone_number":      (r'(\+\d{1,3}[\s\-]?)?\(?\d{3,5}\)?[\s\-]?\d{3,5}[\s\-]?\d{3,5}|\b\d{7,15}\b', 1.5),
+    "phone_number":      (r'(\+\d{1,3}[\s\-]?)?\(?\d{3,5}\)?[\s\-]?\d{3,5}[\s\-]?\d{3,5}', 1.5),
     "credit_card":       (r'(?:\d{4}[\s\-]?){3}\d{4}',                               3.0),
     "password_in_text":  (r'(password|passwd|pwd|pass)\s*[=:is]+\s*\S{4,}',          3.0),
     "ip_address":        (r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b',                1.0),
@@ -22,6 +22,10 @@ SENSITIVE_PATTERNS = {
     "jwt_token":         (r'eyJ[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]+\.[a-zA-Z0-9\-_]+', 3.0),
     "ssn":               (r'\b\d{3}-\d{2}-\d{4}\b',                                  4.0),
     "national_id":       (r'\b\d{12}\b',                                              2.0),
+    # ── Ticket-specific 3 ────────────────────────────────────────
+    "vehicle_vin":       (r'\b[A-HJ-NPR-Z0-9]{17}\b',                                2.0),
+    "ticket_id":         (r'\b(TKT|TICKET)[-_]?\d{4,8}\b',                           1.0),
+    "customer_name":     (r'customer[_\s]*name\s*[=:\-]\s*[A-Za-z\s]{3,40}',         1.5),
 }
 
 PII_FRIENDLY_NAMES = {
@@ -40,6 +44,9 @@ PII_FRIENDLY_NAMES = {
     "jwt_token":         "JWT Token",
     "ssn":               "Social Security Number",
     "national_id":       "National ID Number",
+    "vehicle_vin":       "Vehicle VIN",
+    "ticket_id":         "Ticket ID",
+    "customer_name":     "Customer Name",
 }
 
 PRIVACY_RISK_LEVELS = {
@@ -86,7 +93,6 @@ def detect_sensitive_data(text: str) -> dict:
     pii_count   = len(types_found)
     privacy_risk, risk_message = get_privacy_risk(pii_count)
 
-    # Anonymisation score
     if pii_count > 0 and len(text) > 0:
         anon_score = round(min(100, (len(masked_text) / len(text)) * 100 * 0.5 + 50), 0)
     else:

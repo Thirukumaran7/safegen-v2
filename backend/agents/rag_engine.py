@@ -1,184 +1,178 @@
 """
-SafeGen AI v2 — RAG Engine
-College/University Helpdesk Knowledge Base
-Hybrid retrieval: FAISS (dense) + BM25 (sparse)
+SafeGen AI — RAG Engine (Extended with Ticketing Knowledge Base)
+Now covers both college helpdesk (KB001-KB012) and ticketing system (TKB001-TKB008)
 """
 
 import os
-import json
 import pickle
 import numpy as np
 from pathlib import Path
 
-# ── Knowledge Base Documents ──────────────────────────────────────
-
 KNOWLEDGE_BASE = [
+    # ── College Helpdesk (original 12) ───────────────────────────
     {
-        "id": "KB001",
-        "title": "Fee Payment Procedure",
-        "category": "Finance",
+        "id": "KB001", "title": "Fee Payment Procedure", "category": "Finance",
         "content": """Students can pay fees online through the college portal at fees.college.edu.
 Accepted payment methods include credit card, debit card, net banking, and UPI.
 The fee payment window opens 30 days before the semester start date.
 Late fee of Rs.500 is applicable after the due date.
-Students facing financial difficulties can apply for installment plans through the finance office.
 Fee receipts are automatically generated and sent to the registered email address.
 For payment failures, contact the finance office at finance@college.edu or call 044-2345-6789.""",
     },
     {
-        "id": "KB002",
-        "title": "Hostel Admission and Rules",
-        "category": "Hostel",
+        "id": "KB002", "title": "Hostel Admission and Rules", "category": "Hostel",
         "content": """Hostel applications open in April every year for the next academic year.
 Students must apply through the hostel portal with required documents including ID proof and medical certificate.
 Room allocation is done based on year of study and availability.
 Hostel timings: Entry allowed until 9 PM on weekdays and 10 PM on weekends.
-Guests are allowed in the common area only between 10 AM and 6 PM.
-Mess food is provided three times daily. Menu changes weekly.
-Complaints about hostel facilities should be submitted to the hostel warden at warden@college.edu.
-Room changes can be requested once per semester through the hostel office.""",
+Complaints about hostel facilities should be submitted to the hostel warden at warden@college.edu.""",
     },
     {
-        "id": "KB003",
-        "title": "Examination and Results",
-        "category": "Examination",
+        "id": "KB003", "title": "Examination and Results", "category": "Examination",
         "content": """Hall tickets are issued two weeks before examinations through the student portal.
-Students must carry their hall ticket and college ID card to the examination hall.
-Minimum attendance of 75% is required to be eligible to appear in examinations.
-Results are published within 30 days of the last examination date on the results portal.
-Students can apply for revaluation within 15 days of result publication by paying Rs.300 per subject.
-Grace marks of up to 5 marks per subject may be awarded to students with attendance between 65% and 74%.
-Examination timetable is published on the college website 6 weeks before exams.""",
+Minimum attendance of 75% is required to appear in examinations.
+Results are published within 30 days of the last examination date.
+Students can apply for revaluation within 15 days of result publication by paying Rs.300 per subject.""",
     },
     {
-        "id": "KB004",
-        "title": "Certificates and Documents",
-        "category": "Administration",
+        "id": "KB004", "title": "Certificates and Documents", "category": "Administration",
         "content": """Bonafide certificates are issued within 3 working days of application through the student portal.
 Transfer certificates are issued after clearing all dues and returning library books.
-Migration certificates are issued for students moving to other universities.
-Consolidated marksheets are available after course completion.
-All certificates require application through the online portal with a processing fee.
-Attested copies of documents can be obtained from the administrative office.
-Original certificates are issued only after verification of dues clearance.
-Emergency bonafide certificates can be issued on the same day with valid reason.""",
+All certificates require application through the online portal with a processing fee.""",
     },
     {
-        "id": "KB005",
-        "title": "Scholarships and Financial Aid",
-        "category": "Finance",
-        "content": """Merit scholarship is awarded to top 5% students in each department based on previous semester performance.
+        "id": "KB005", "title": "Scholarships and Financial Aid", "category": "Finance",
+        "content": """Merit scholarship is awarded to top 5% students in each department.
 Government scholarships including BC, MBC, SC, ST scholarships require application through the scholarship portal.
-National Scholarship Portal applications open in October every year.
-Post-matric scholarship applications must be submitted with income certificate and community certificate.
-Educational loans are facilitated through partner banks. Contact the finance office for details.
-Students can apply for fee waiver in case of genuine financial hardship with supporting documents.
-Scholarship disbursement happens directly to the student's bank account within 60 days of approval.""",
+National Scholarship Portal applications open in October every year.""",
     },
     {
-        "id": "KB006",
-        "title": "Attendance and Leave Policy",
-        "category": "Academic",
-        "content": """Minimum attendance requirement is 75% in each subject to appear in semester examinations.
+        "id": "KB006", "title": "Attendance and Leave Policy", "category": "Academic",
+        "content": """Minimum attendance requirement is 75% in each subject.
 Medical leave requires submission of medical certificate within 3 days of rejoining.
-Students with attendance between 65% and 74% may be given grace marks at the discretion of the principal.
-Attendance below 65% results in detention and the student must repeat the semester.
-On-duty leave is granted for students participating in sports, cultural events, or industrial visits.
-Leave application must be submitted in advance through the student portal or physically to the faculty advisor.
-Biometric attendance is mandatory for all registered students.""",
+Students with attendance between 65% and 74% may be given grace marks.""",
     },
     {
-        "id": "KB007",
-        "title": "Library Services",
-        "category": "Library",
-        "content": """Library timings are 8 AM to 8 PM on weekdays and 9 AM to 5 PM on Saturdays.
-Students can borrow up to 3 books at a time for a period of 14 days.
-Books can be renewed online through the library portal if not reserved by another student.
-Late return fine is Rs.2 per day per book.
-Access to digital resources including IEEE Xplore, Springer, and JSTOR is available through the library portal.
-Reference books and journals cannot be taken outside the library.
-Interlibrary loan facility is available for research scholars.
-Lost books must be replaced with a new copy of the same edition.""",
+        "id": "KB007", "title": "Library Services", "category": "Library",
+        "content": """Library timings are 8 AM to 8 PM on weekdays.
+Students can borrow up to 3 books at a time for 14 days.
+Late return fine is Rs.2 per day per book.""",
     },
     {
-        "id": "KB008",
-        "title": "Placement and Internship",
-        "category": "Placement",
+        "id": "KB008", "title": "Placement and Internship", "category": "Placement",
         "content": """Campus placements begin in the 7th semester for eligible students.
 Eligibility criteria: minimum 60% aggregate, no active backlogs, 75% attendance.
-Students must register with the placement cell by August of their final year.
-Internships during semester break can be arranged through the placement cell or independently.
-Internship completion certificate from the company is required for credit transfer.
-Mock interviews and aptitude training are conducted throughout the academic year.
-Students placed through campus drives are not eligible to attend further drives from other companies.
-Contact placement cell at placement@college.edu for any queries.""",
+Students must register with the placement cell by August of their final year.""",
     },
     {
-        "id": "KB009",
-        "title": "ID Card and Access",
-        "category": "Administration",
+        "id": "KB009", "title": "ID Card and Access", "category": "Administration",
         "content": """ID cards are issued during the first week of the academic year.
 Lost ID cards must be reported immediately to the security office.
-Duplicate ID card costs Rs.200 and takes 3 working days to process.
-ID card is mandatory for entry into campus, library, labs, and examination halls.
-ID card must be worn visibly while on campus at all times.
-Damaged ID cards can be replaced at the administrative office with the old card.
-Temporary gate passes are available for students who have forgotten their ID card.""",
+Duplicate ID card costs Rs.200 and takes 3 working days.""",
     },
     {
-        "id": "KB010",
-        "title": "Grievance and Complaints",
-        "category": "Administration",
-        "content": """Students can register grievances through the online grievance portal at grievance.college.edu.
-The grievance cell meets every Monday to review and address complaints.
-Academic grievances should first be addressed to the faculty concerned, then the HOD, then the grievance cell.
-Anti-ragging committee can be contacted at anti.ragging@college.edu or the national helpline 1800-180-5522.
-Sexual harassment complaints should be addressed to the Internal Complaints Committee.
-All complaints are treated confidentially and resolved within 15 working days.
-Students can also drop written complaints in the grievance box located at the administrative block.""",
+        "id": "KB010", "title": "Grievance and Complaints", "category": "Administration",
+        "content": """Students can register grievances through the online grievance portal.
+Anti-ragging committee can be contacted at anti.ragging@college.edu or 1800-180-5522.
+All complaints are treated confidentially and resolved within 15 working days.""",
     },
     {
-        "id": "KB011",
-        "title": "Computer Lab and IT Services",
-        "category": "IT",
+        "id": "KB011", "title": "Computer Lab and IT Services", "category": "IT",
         "content": """Computer labs are open from 8 AM to 9 PM on weekdays.
 Students receive a college email account and WiFi credentials during registration.
-College WiFi is available across campus including hostels.
-Software installation requests must be submitted to the IT department.
-Personal devices can be connected to college WiFi after MAC address registration.
-Data usage is monitored and restricted to academic purposes only.
-IT helpdesk is available at it.support@college.edu for technical issues.
-Printing facility is available in the library and IT department at Rs.1 per page.""",
+IT helpdesk is available at it.support@college.edu for technical issues.""",
     },
     {
-        "id": "KB012",
-        "title": "Course Registration and Electives",
-        "category": "Academic",
+        "id": "KB012", "title": "Course Registration and Electives", "category": "Academic",
         "content": """Course registration opens 2 weeks before each semester begins.
 Students must register for all subjects including electives through the academic portal.
-Elective subjects are offered based on minimum enrollment of 20 students.
-Change of elective is allowed within the first week of the semester.
-Open electives allow students to take subjects from other departments.
-Credit requirements for graduation: 160 credits for B.E./B.Tech programs.
-Students can apply for additional courses beyond the required curriculum for extra credits.
-Course registration issues should be reported to the academic section immediately.""",
+Credit requirements for graduation: 160 credits for B.E./B.Tech programs.""",
+    },
+
+    # ── Ticketing System Knowledge Base (new 8) ──────────────────
+    {
+        "id": "TKB001", "title": "Ticket Escalation Procedure", "category": "Ticketing",
+        "content": """Tickets are escalated when unresolved for more than 48 hours at standard priority.
+Critical priority tickets must be escalated within 4 hours if unresolved.
+To escalate a ticket use the Escalate button in the ticket portal or contact your supervisor directly.
+Priority levels from highest to lowest: Critical, High, Medium, Low.
+Escalated tickets are automatically assigned to the next tier support team.
+The original agent is notified of escalation and must provide a handover note within 1 hour.""",
+    },
+    {
+        "id": "TKB002", "title": "Data Access Policy for Ticket System", "category": "Policy",
+        "content": """Customers can only access and query their own tickets.
+Support agents can access all tickets in their assigned queue and department.
+Admin users have full read access to all ticket data including historical records.
+VIN numbers and customer contact details are restricted to agent and admin roles.
+Customers must not be shown ticket data belonging to other customers under any circumstances.
+PII fields including customer name, email, phone number and VIN are masked for customer-role queries.""",
+    },
+    {
+        "id": "TKB003", "title": "Ticket Status Definitions", "category": "Ticketing",
+        "content": """Open: Ticket has been received and is awaiting assignment.
+In Progress: Ticket has been assigned to an agent and work has started.
+Pending Customer: Ticket is waiting for additional information from the customer.
+Resolved: Issue has been fixed and solution has been communicated to the customer.
+Closed: Customer has confirmed resolution or ticket has been auto-closed after 7 days.
+Reopened: Customer has indicated the issue persists after resolution.""",
+    },
+    {
+        "id": "TKB004", "title": "Creating a New Ticket", "category": "Ticketing",
+        "content": """To create a new ticket log into the support portal and click New Ticket.
+Required fields: Subject, Description, Priority, Category.
+Optional fields: Attachments, VIN number if vehicle-related, Model number.
+Tickets are automatically assigned a unique Ticket ID in the format TKT-XXXXXXXX.
+Confirmation email is sent to the registered customer email address.
+Estimated response times: Critical 2 hours, High 8 hours, Medium 24 hours, Low 72 hours.""",
+    },
+    {
+        "id": "TKB005", "title": "VIN and Vehicle Data Handling", "category": "Policy",
+        "content": """Vehicle Identification Numbers (VIN) are 17-character alphanumeric strings.
+VIN data is classified as sensitive and must not be shared outside the support system.
+Agents can view VIN data for tickets in their queue.
+Customers can see their own VIN data but not other customers' VIN numbers.
+VIN data must be masked when exporting ticket reports unless explicitly authorised by admin.
+Logging or storing VIN data outside the approved system is a policy violation.""",
+    },
+    {
+        "id": "TKB006", "title": "Security Incident Reporting", "category": "Security",
+        "content": """Any suspected data breach or unauthorised access must be reported within 1 hour.
+Contact the security team at security@support.com or call the hotline immediately.
+Do not attempt to investigate a breach yourself — report and escalate.
+Suspicious ticket queries attempting to extract bulk data should be flagged immediately.
+Social engineering attempts in ticket descriptions should be marked as security incidents.
+All security incidents receive Critical priority and are escalated to the admin team.""",
+    },
+    {
+        "id": "TKB007", "title": "Ticket SLA and Response Times", "category": "Operations",
+        "content": """Service Level Agreements define maximum response and resolution times.
+Critical: First response within 2 hours, resolution within 8 hours.
+High: First response within 8 hours, resolution within 24 hours.
+Medium: First response within 24 hours, resolution within 72 hours.
+Low: First response within 72 hours, resolution within 7 days.
+SLA breaches are automatically escalated to the team lead.
+Customers are notified if SLA cannot be met with an updated estimated resolution time.""",
+    },
+    {
+        "id": "TKB008", "title": "Agent Guidelines for Safe Query Handling", "category": "Security",
+        "content": """Agents must verify customer identity before sharing any ticket information.
+Never share ticket data over unencrypted channels.
+If a query asks for information about multiple customers simultaneously treat it as suspicious.
+Bulk data extraction requests must be reported to admin regardless of who is making the request.
+Injection attempts in ticket descriptions — such as instructions to ignore system rules — must be flagged.
+Customer queries that seem to probe system structure or database schema should be escalated.""",
     },
 ]
 
-# ── RAG Engine ────────────────────────────────────────────────────
-
 INDEX_PATH = "ml/rag_index.pkl"
-
 _index_data = None
 
 
 def _build_index():
-    """Build BM25 index from knowledge base documents."""
     global _index_data
-
     try:
         from rank_bm25 import BM25Okapi
-
         corpus = []
         for doc in KNOWLEDGE_BASE:
             combined = f"{doc['title']} {doc['content']}"
@@ -186,21 +180,14 @@ def _build_index():
             corpus.append(tokens)
 
         bm25 = BM25Okapi(corpus)
+        _index_data = {"bm25": bm25, "documents": KNOWLEDGE_BASE, "corpus": corpus}
 
-        _index_data = {
-            "bm25":      bm25,
-            "documents": KNOWLEDGE_BASE,
-            "corpus":    corpus,
-        }
-
-        # Save index
         os.makedirs("ml", exist_ok=True)
         with open(INDEX_PATH, "wb") as f:
             pickle.dump(_index_data, f)
 
-        print(f"RAG index built: {len(KNOWLEDGE_BASE)} documents")
+        print(f"RAG index built: {len(KNOWLEDGE_BASE)} documents ({len([d for d in KNOWLEDGE_BASE if d['id'].startswith('KB')])} helpdesk + {len([d for d in KNOWLEDGE_BASE if d['id'].startswith('TKB')])} ticketing)")
         return True
-
     except Exception as e:
         print(f"RAG index build error: {e}")
         return False
@@ -210,7 +197,6 @@ def _load_index():
     global _index_data
     if _index_data is not None:
         return True
-
     if os.path.exists(INDEX_PATH):
         try:
             with open(INDEX_PATH, "rb") as f:
@@ -219,75 +205,67 @@ def _load_index():
             return True
         except Exception:
             pass
-
     return _build_index()
 
 
-def retrieve_context(query: str, top_k: int = 3) -> dict:
-    """
-    Retrieve relevant documents for a query using BM25.
-    Returns top_k most relevant documents.
-    """
+def retrieve_context(query: str, top_k: int = 3, category_filter: str = None) -> dict:
     if not _load_index():
         return {"context": "", "sources": []}
-
     try:
         from rank_bm25 import BM25Okapi
-
         bm25      = _index_data["bm25"]
         documents = _index_data["documents"]
 
         query_tokens = query.lower().split()
         scores       = bm25.get_scores(query_tokens)
+        top_indices  = np.argsort(scores)[::-1][:top_k * 2]
 
-        # Get top_k indices
-        top_indices = np.argsort(scores)[::-1][:top_k]
-
-        # Filter by minimum score threshold
         relevant_docs = []
         for idx in top_indices:
             if scores[idx] > 0.5:
+                doc = documents[idx]
+                # Optional category filter for ticketing-only or helpdesk-only queries
+                if category_filter and doc.get("category") not in category_filter:
+                    continue
                 relevant_docs.append({
-                    "id":       documents[idx]["id"],
-                    "title":    documents[idx]["title"],
-                    "category": documents[idx]["category"],
-                    "content":  documents[idx]["content"],
+                    "id":       doc["id"],
+                    "title":    doc["title"],
+                    "category": doc["category"],
+                    "content":  doc["content"],
                     "score":    round(float(scores[idx]), 3),
                 })
+                if len(relevant_docs) >= top_k:
+                    break
 
         if not relevant_docs:
             return {"context": "", "sources": []}
 
-        # Build context string
-        context_parts = []
-        for doc in relevant_docs:
-            context_parts.append(f"[{doc['title']}]\n{doc['content']}")
-
+        context_parts = [f"[{d['title']}]\n{d['content']}" for d in relevant_docs]
         context = "\n\n---\n\n".join(context_parts)
         sources = [{"id": d["id"], "title": d["title"], "score": d["score"]} for d in relevant_docs]
 
-        return {
-            "context": context,
-            "sources": sources,
-        }
-
+        return {"context": context, "sources": sources}
     except Exception as e:
         print(f"RAG retrieval error: {e}")
         return {"context": "", "sources": []}
 
 
 def build_rag_index():
-    """Public function to rebuild the RAG index."""
     return _build_index()
 
 
 if __name__ == "__main__":
     print("Building RAG index...")
     build_rag_index()
-    print("\nTesting retrieval...")
-    result = retrieve_context("how do I pay my college fees online")
-    print(f"Sources found: {len(result['sources'])}")
-    for src in result["sources"]:
-        print(f"  - {src['title']} (score: {src['score']})")
-    print("\nContext preview:")
-    print(result["context"][:300])
+    print("\nTesting college helpdesk retrieval...")
+    r1 = retrieve_context("how do I pay my college fees online")
+    for s in r1["sources"]:
+        print(f"  {s['id']} — {s['title']} (score: {s['score']})")
+    print("\nTesting ticket system retrieval...")
+    r2 = retrieve_context("how do I escalate a critical ticket")
+    for s in r2["sources"]:
+        print(f"  {s['id']} — {s['title']} (score: {s['score']})")
+    print("\nTesting VIN data retrieval...")
+    r3 = retrieve_context("who can see vehicle VIN numbers")
+    for s in r3["sources"]:
+        print(f"  {s['id']} — {s['title']} (score: {s['score']})")

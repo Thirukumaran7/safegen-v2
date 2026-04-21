@@ -1,9 +1,8 @@
-
 """
-SafeGen AI v2 — Decision Engine
+SafeGen AI — Decision Engine
 Four decisions: ALLOW / RESTRICT / REDACT / BLOCK
-REDACT — reserved exclusively for PII detection
-BLOCK  — score based OR injection detected
+REDACT — reserved exclusively for PII detection (only when no malware present)
+BLOCK  — score based OR injection detected OR malware with high score
 """
 
 from .policy import get_thresholds
@@ -17,11 +16,12 @@ DECISION_DESCRIPTIONS = {
 
 
 def make_decision(
-    final_score:         float,
-    policy:              str,
-    role:                str,
+    final_score:          float,
+    policy:               str,
+    role:                 str,
     sensitive_data_found: bool = False,
-    injection_detected:  bool = False,
+    injection_detected:   bool = False,
+    malware_detected:     bool = False,
 ) -> dict:
 
     # Injection → immediate BLOCK regardless of score
@@ -36,7 +36,7 @@ def make_decision(
 
     thresholds = get_thresholds(policy, role)
 
-    # Score-based decision — REDACT not used here
+    # Score-based decision
     if final_score < thresholds["allow_max"]:
         decision = "ALLOW"
         reason   = f"Score {final_score} is within safe threshold of {thresholds['allow_max']}"
@@ -50,8 +50,11 @@ def make_decision(
         decision = "BLOCK"
         reason   = f"Score {final_score} exceeds block threshold of {thresholds['block_max']}"
 
-    # PII override — REDACT only when sensitive data actually found
-    if sensitive_data_found and decision in ("ALLOW", "RESTRICT"):
+    # PII override — REDACT only when:
+    # 1. Sensitive data was found
+    # 2. Score-based decision was ALLOW or RESTRICT
+    # 3. No malware detected (malware cases should stay RESTRICT or BLOCK, not be downgraded to REDACT)
+    if sensitive_data_found and decision in ("ALLOW", "RESTRICT") and not malware_detected:
         decision = "REDACT"
         reason   = "Sensitive data detected in input — content masked"
 
@@ -61,4 +64,4 @@ def make_decision(
         "description":     DECISION_DESCRIPTIONS[decision],
         "thresholds_used": thresholds,
         "override":        None,
-    }   
+    }

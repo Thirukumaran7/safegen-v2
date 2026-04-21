@@ -37,12 +37,13 @@ def run_risk_analysis(
 
     # Step 3 — Make decision
     decision_result = make_decision(
-        final_score           = scoring_result["final_score"],
-        policy                = policy,
-        role                  = role,
-        sensitive_data_found  = sensitive_result["contains_sensitive"],
-        injection_detected    = intent_result["injection_detected"],
-    )
+    final_score          = scoring_result["final_score"],
+    policy               = policy,
+    role                 = role,
+    sensitive_data_found = sensitive_result["contains_sensitive"],
+    injection_detected   = intent_result["injection_detected"],
+    malware_detected     = malware_result["malware_type"] != "None",  # add this
+)
 
     # Step 4 — RAG retrieval (only if decision is ALLOW or RESTRICT)
     rag_context = ""

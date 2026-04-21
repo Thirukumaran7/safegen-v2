@@ -1,10 +1,10 @@
 ﻿import { useState, useEffect, useRef } from "react";
-import Header    from "./components/Header";
-import StatBar   from "./components/StatBar";
+import Header      from "./components/Header";
+import StatBar     from "./components/StatBar";
 import InputPanel  from "./components/InputPanel";
 import ResultPanel from "./components/ResultPanel";
-import Dashboard from "./components/Dashboard";
-import Compare   from "./components/Compare";
+import Dashboard   from "./components/Dashboard";
+import Compare     from "./components/Compare";
 import { analyzeText, sendFeedback, fetchHealth } from "./utils/api";
 
 export default function App() {
@@ -21,15 +21,14 @@ export default function App() {
   const [dark,    setDark]    = useState(true);
   const resultRef = useRef(null);
 
+  // Single useEffect handles theme — runs on every dark toggle
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
-    document.body.style.background = "var(--bg)";
-    document.body.style.color = "var(--text)";
   }, [dark]);
 
+  // Startup — health check only, do not touch theme here
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", "dark");
-    document.body.style.background = "var(--bg)";
     fetchHealth().then(() => setLive(true)).catch(() => setLive(false));
   }, []);
 
@@ -59,7 +58,7 @@ export default function App() {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", transition:"background 0.2s" }}>
+    <div style={{ minHeight:"100vh", background:"var(--bg)", color:"var(--text)", transition:"background 0.3s, color 0.3s" }}>
       <Header view={view} setView={setView} live={live} dark={dark} setDark={setDark} />
 
       {view === "analyze" && (

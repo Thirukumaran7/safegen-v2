@@ -1,4 +1,4 @@
-﻿export const BACKEND = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+﻿export const BACKEND = "http://localhost:8000";
 export const DECISION_COLORS = { ALLOW: '#22c55e', RESTRICT: '#f59e0b', REDACT: '#3b82f6', BLOCK: '#ef4444' };
 export const DECISION_ICONS  = { ALLOW: '✓', RESTRICT: '⚠', REDACT: '🔒', BLOCK: '✕' };
 export const DEMO_INPUTS = [
