@@ -1,4 +1,5 @@
-﻿import { DECISION_COLORS, DECISION_ICONS } from "../utils/constants";
+﻿import { useState } from "react";
+import { DECISION_COLORS, DECISION_ICONS } from "../utils/constants";
 
 function Ring({score,color}){
   const r=34,c=2*Math.PI*r;
@@ -30,8 +31,31 @@ function Det({title,main,sub,score,bar,tc,extra}){
   );
 }
 
-export default function ResultPanel({result,loading,onFeedback}){
+export default function ResultPanel({result, loading, onFeedback}){
+  const [feedbackSent, setFeedbackSent] = useState(null);
+  const [prevLogId,    setPrevLogId]    = useState(null);
   const DC = DECISION_COLORS;
+
+  // Reset feedback state when a new result comes in
+  if(result && result.log_id !== prevLogId){
+    setPrevLogId(result.log_id);
+    setFeedbackSent(null);
+  }
+
+  const handleFeedback = async (logId, agreed) => {
+    if(!logId || logId === 0){
+      setFeedbackSent("error");
+      return;
+    }
+    try {
+      await onFeedback(logId, agreed);
+      setFeedbackSent(agreed ? "yes" : "no");
+    } catch(e) {
+      console.error("Feedback error:", e);
+      setFeedbackSent("error");
+    }
+  };
+
   if(loading) return(
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:400,background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,gap:12}}>
       <div style={{width:44,height:44,border:'3px solid var(--border)',borderTop:'3px solid #3b82f6',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
@@ -39,6 +63,7 @@ export default function ResultPanel({result,loading,onFeedback}){
       <div style={{fontSize:12,color:'var(--text2)'}}>Running DistilBERT + RAG pipeline</div>
     </div>
   );
+
   if(!result) return(
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:400,background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,gap:10}}>
       <div style={{width:60,height:60,borderRadius:16,background:'linear-gradient(135deg,#3b82f622,#0ea5e922)',border:'1px solid #3b82f640',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>🛡</div>
@@ -48,6 +73,7 @@ export default function ResultPanel({result,loading,onFeedback}){
   );
 
   const dc = DC[result.decision];
+
   return(
     <div style={{display:'flex',flexDirection:'column',gap:12,animation:'fadeSlide 0.3s ease'}}>
 
@@ -71,13 +97,26 @@ export default function ResultPanel({result,loading,onFeedback}){
 
       {/* Detectors */}
       <div className="det-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-        <Det title="🦠 MALWARE DETECTION" main={result.malware_type!=='None'?result.malware_type:'✓ No Malware'} sub={result.malware_type!=='None'?`${result.malware_category} · ${result.severity}`:''} score={result.scores.malware} bar="#ef4444" tc={result.malware_type!=='None'?'#ef4444':'#22c55e'}/>
-        <Det title="🔐 SENSITIVE DATA" main={result.pii_detected?`${result.pii_count} PII Found`:'✓ No PII Found'} sub={result.pii_detected?result.pii_types?.slice(0,2).join(', '):''} score={result.scores.sensitive} bar="#3b82f6" tc={result.pii_detected?'#3b82f6':'#22c55e'} extra={result.pii_detected?`Anon: ${result.anonymisation_score}%`:''}/>
-        <Det title="🎯 INTENT ANALYSIS" main={result.threat_category} sub={`Confidence: ${Math.round(result.intent_confidence*100)}%`} score={result.scores.intent} bar="#f59e0b" tc={dc} extra={result.injection_detected?'⚠ Injection Detected':''}/>
+        <Det title="🦠 MALWARE DETECTION"
+          main={result.malware_type!=='None'?result.malware_type:'✓ No Malware'}
+          sub={result.malware_type!=='None'?`${result.malware_category} · ${result.severity}`:''}
+          score={result.scores.malware} bar="#ef4444"
+          tc={result.malware_type!=='None'?'#ef4444':'#22c55e'}/>
+        <Det title="🔐 SENSITIVE DATA"
+          main={result.pii_detected?`${result.pii_count} PII Found`:'✓ No PII Found'}
+          sub={result.pii_detected?result.pii_types?.slice(0,2).join(', '):''}
+          score={result.scores.sensitive} bar="#3b82f6"
+          tc={result.pii_detected?'#3b82f6':'#22c55e'}
+          extra={result.pii_detected?`Anon: ${result.anonymisation_score}%`:''}/>
+        <Det title="🎯 INTENT ANALYSIS"
+          main={result.threat_category}
+          sub={`Confidence: ${Math.round(result.intent_confidence*100)}%`}
+          score={result.scores.intent} bar="#f59e0b" tc={dc}
+          extra={result.injection_detected?'⚠ Injection Detected':''}/>
       </div>
 
       {/* RAG sources */}
-      {result.rag_used&&result.rag_sources?.length>0&&(
+      {result.rag_used && result.rag_sources?.length > 0 && (
         <div style={{background:'var(--card)',border:'1px solid #0ea5e930',borderRadius:12,padding:14}}>
           <div style={{fontSize:10,fontWeight:700,color:'#0ea5e9',letterSpacing:'0.06em',marginBottom:10}}>📚 RAG — KNOWLEDGE BASE SOURCES</div>
           {result.rag_sources.map((s,i)=>(
@@ -108,11 +147,33 @@ export default function ResultPanel({result,loading,onFeedback}){
       </div>
 
       {/* Feedback */}
-      <div style={{display:'flex',gap:8,justifyContent:'flex-end',alignItems:'center'}}>
+      <div style={{display:'flex',gap:8,justifyContent:'flex-end',alignItems:'center',padding:'4px 0'}}>
         <span style={{fontSize:11,color:'var(--text2)'}}>Correct decision?</span>
-        <button onClick={()=>onFeedback(result.log_id,true)} style={{background:'#22c55e22',border:'1px solid #22c55e40',color:'#22c55e',borderRadius:6,padding:'6px 14px',fontSize:12,fontWeight:600}}>👍 Yes</button>
-        <button onClick={()=>onFeedback(result.log_id,false)} style={{background:'#ef444422',border:'1px solid #ef444440',color:'#ef4444',borderRadius:6,padding:'6px 14px',fontSize:12,fontWeight:600}}>👎 No</button>
+        {feedbackSent === "yes" && (
+          <span style={{fontSize:12,color:'#22c55e',fontWeight:700}}>✓ Thanks for confirming</span>
+        )}
+        {feedbackSent === "no" && (
+          <span style={{fontSize:12,color:'#f59e0b',fontWeight:700}}>✓ Feedback recorded</span>
+        )}
+        {feedbackSent === "error" && (
+          <span style={{fontSize:12,color:'#ef4444',fontWeight:700}}>⚠ Could not save feedback</span>
+        )}
+        {!feedbackSent && (
+          <>
+            <button
+              onClick={()=>handleFeedback(result.log_id, true)}
+              style={{background:'#22c55e22',border:'1px solid #22c55e40',color:'#22c55e',borderRadius:6,padding:'6px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+              👍 Yes
+            </button>
+            <button
+              onClick={()=>handleFeedback(result.log_id, false)}
+              style={{background:'#ef444422',border:'1px solid #ef444440',color:'#ef4444',borderRadius:6,padding:'6px 14px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+              👎 No
+            </button>
+          </>
+        )}
       </div>
+
     </div>
   );
 }

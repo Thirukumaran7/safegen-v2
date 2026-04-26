@@ -21,12 +21,12 @@ export default function App() {
   const [dark,    setDark]    = useState(true);
   const resultRef = useRef(null);
 
-  // Single useEffect handles theme — runs on every dark toggle
+  // Theme toggle
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   }, [dark]);
 
-  // Startup — health check only, do not touch theme here
+  // Startup health check only
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", "dark");
     fetchHealth().then(() => setLive(true)).catch(() => setLive(false));
@@ -81,7 +81,11 @@ export default function App() {
                   {error}
                 </div>
               )}
-              <ResultPanel result={result} loading={loading} onFeedback={async(id,a)=>{try{await sendFeedback(id,a);}catch{}}} />
+              <ResultPanel
+                result={result}
+                loading={loading}
+                onFeedback={async(id, a) => { await sendFeedback(id, a); }}
+              />
             </div>
           </div>
         </div>
