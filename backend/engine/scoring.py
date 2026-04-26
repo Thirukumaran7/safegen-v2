@@ -28,10 +28,10 @@ ROLE_WEIGHTS = {
     # Customer: highest malware weight — data extraction and social
     # engineering are the primary threats from the customer role
     "customer": {
-        "malware":   0.40,
-        "sensitive": 0.15,
-        "intent":    0.45,
-    },
+    "malware":   0.33,
+    "sensitive": 0.33,
+    "intent":    0.34,
+},
     # Agent: balanced — needs to handle sensitive data legitimately
     "agent": {
         "malware":   0.20,

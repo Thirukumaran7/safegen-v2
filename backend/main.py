@@ -37,8 +37,6 @@ async def startup():
     print("SafeGen AI started")
 
 
-# ── Request models ────────────────────────────────────────────────
-
 RoleType   = Literal["student", "general", "expert", "customer", "agent", "admin"]
 PolicyType = Literal["strict", "moderate", "open"]
 
@@ -50,10 +48,10 @@ class AnalyzeRequest(BaseModel):
 
 class TicketAnalyzeRequest(BaseModel):
     ticket_description: str
-    ticket_fields:      dict          = {}
-    role:               RoleType      = "customer"
-    policy:             PolicyType    = "moderate"
-    use_rag:            bool          = True
+    ticket_fields:      dict       = {}
+    role:               RoleType   = "customer"
+    policy:             PolicyType = "moderate"
+    use_rag:            bool       = True
 
 class ImageAnalyzeRequest(BaseModel):
     image_base64: str
@@ -72,8 +70,6 @@ class FeedbackRequest(BaseModel):
     suggested_decision: Optional[str] = None
     user_comment:       Optional[str] = None
 
-
-# ── Helpers ───────────────────────────────────────────────────────
 
 def save_analysis(db, analysis, response_text, policy, role, input_type="text"):
     log = AnalysisLog(
@@ -142,8 +138,6 @@ def format_response(analysis, response_text, log_id, policy, role, input_type="t
     return r
 
 
-# ── Endpoints ─────────────────────────────────────────────────────
-
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
     analysis = run_risk_analysis(text=request.text, policy=request.policy, role=request.role, use_rag=request.use_rag)
@@ -158,7 +152,6 @@ async def analyze(request: AnalyzeRequest, db: Session = Depends(get_db)):
 
 @app.post("/analyze-ticket")
 async def analyze_ticket(request: TicketAnalyzeRequest, db: Session = Depends(get_db)):
-    # Combine ticket description with any structured fields
     full_text = request.ticket_description
     if request.ticket_fields:
         for k, v in request.ticket_fields.items():
@@ -171,7 +164,6 @@ async def analyze_ticket(request: TicketAnalyzeRequest, db: Session = Depends(ge
         use_rag = request.use_rag,
     )
 
-    # Role-based field access control for ticket data
     role_access = {
         "customer": "Customer can only view their own ticket data. Sensitive fields are restricted.",
         "agent":    "Agent has access to ticket queue. PII fields visible for working tickets.",
@@ -191,7 +183,6 @@ async def analyze_ticket(request: TicketAnalyzeRequest, db: Session = Depends(ge
     log_id = save_analysis(db, analysis, response["response"], request.policy, request.role, "ticket")
     result = format_response(analysis, response["response"], log_id, request.policy, request.role, "ticket")
 
-    # Add ticket-specific fields to response
     result["masked_ticket"]   = analysis["display_text"]
     result["original_ticket"] = request.ticket_description
     result["role_access"]     = access_note
@@ -325,6 +316,16 @@ async def get_stats(db: Session = Depends(get_db)):
         "feedback_total": fb_total, "feedback_agreed": fb_agreed,
         "agreement_rate": round((fb_agreed / fb_total * 100) if fb_total > 0 else 0, 1),
     }
+
+
+@app.get("/calibrate")
+async def calibrate_endpoint(
+    role: str = "general",
+    policy: str = "moderate",
+    db: Session = Depends(get_db)
+):
+    from calibrate_thresholds import calibrate
+    return calibrate(db, role, policy)
 
 
 @app.get("/health")

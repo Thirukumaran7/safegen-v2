@@ -46,6 +46,15 @@ INJECTION_PATTERNS = [
     r"<\|system\|>",
     r"\[system\]",
     r"###instruction###",
+    r"ignore\s+instructions",
+    r"ignore\s+all\s+rules",
+    r"show\s+all\s+data",
+    r"show\s+me\s+all",
+    r"list\s+all\s+customer",
+    r"all\s+customer\s+phone",
+    r"all\s+vin\s+numbers",
+    r"export\s+all",
+    r"dump\s+all",
 ]
 
 COMPILED_PATTERNS = [re.compile(p, re.IGNORECASE) for p in INJECTION_PATTERNS]
